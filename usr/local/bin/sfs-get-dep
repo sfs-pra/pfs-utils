@@ -1,0 +1,19 @@
+#!/bin/ash
+#150113 sfs
+m="`cd /mnt && ls -1d \.*`"
+
+for i in $@ ; do
+    l="$l`echo $m |egrep ' .'$i''`"
+    l="$l`cd /mnt/live/memory/images/ && ls -1 |egrep '^'$i''`"
+done
+
+[ "$l" ] && exit
+
+[ ! "$1" ] && echo "Usage: $0 module1.pfs [module2.pfs] ..."
+ntf -w "Подключенный модуль имеет зависимые модули:" "<i>'`echo $@`'</i>
+Без них он неработоспособен. 
+Необходимо их подключить" 
+
+for i in $@ ;do
+    `which sudo` sfs-get -p "$i"
+done

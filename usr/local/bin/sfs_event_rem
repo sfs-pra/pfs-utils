@@ -1,0 +1,8 @@
+#!/bin/ash
+#140317 sfs
+[ ! "$2" ] && echo "Usage: $0 module.[ps]fs" && exit
+(sudo -u "`sfsusr`"  fixmenus && `which icewm`) &
+
+mount_point="/mnt/.`basename "$1"`"
+[ -f "$mount_point"/stop.sh ] && `which sudo` "$mount_point"/stop.sh #&
+

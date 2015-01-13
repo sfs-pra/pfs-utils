@@ -1,0 +1,9 @@
+#!/bin/ash 
+#140703
+# X user detect
+for i in jwm openbox metacity xfce4-session enlightenment ;do
+    #echo $i
+    wm="`pidof $i`"
+    [ "$wm" = "" ] || u=`ps axu |awk '$2 ~ /^'$wm'$/ {print $1}'`
+done
+echo $u

@@ -1,0 +1,342 @@
+#!/bin/ash
+#141204 sfslinux@gmail.com
+notifysend=/usr/bin/notify-send
+err=/usr/share/pixmaps/error48.png
+info=/usr/share/pixmaps/info48.png
+warn=/usr/share/pixmaps/warning48.png
+que=/usr/share/pixmaps/question48.png
+
+##default
+splash=yad
+dialog=yad
+time=3
+yad_deco=--undecorated
+placement="geometry=-0"
+## read conf
+[ -f /etc/ntf.conf ] && cfg="/etc/ntf.conf" || cfg="$HOME/.config/ntf.conf"
+[ -f $cfg ] && eval "`egrep -v '^#|^$' $cfg`"
+t="`echo "$1" |sed 's/-[a-z]\+//' |sed 's/[a-z]\+//'`"
+[ "$t" ] && time="$t"
+
+#### file ############
+if [ "$1" = "-f" ] ;then
+shift
+[ "$1" ] && f="$1" || f="*"
+t="Выберите файл $f"
+[ "$2" ] && m1='<text use-markup="true"><label>"<b>'$2'</b>"</label></text>'
+[ "$3" ] && m1='<text wrap="false" use-markup="true"><label>"<b>'$2'</b>
+<i>'$3'</i>"</label></text>'
+
+MAIN_DIALOG='	
+<window title="'$t'"  window-position="1" icon-name="gtk-file">
+ <vbox>
+    '$m1'
+   <frame '$t'                                                           ->
+   <hbox>
+    <entry activates_default="true" accept="file" icon="gtk-open" fs-filters="'$f'">
+     <variable>d</variable>
+    </entry>
+
+    <button tooltip-text="'$m'">
+     <input file icon="gtk-directory"></input>
+     <action type="fileselect">d</action>
+     <action function="exit">echo $d</action>
+    </button>
+   </hbox>
+
+   </frame>
+
+    <hbox>
+       <button cancel></button>
+       <button ok></button>
+    </hbox>
+ </vbox>
+</window>'
+
+export GUI="`echo "$MAIN_DIALOG" | sed -e 's/^#.*//'`"
+ret="`gtkdialog --program=GUI --center`"
+eval "$ret"
+echo "$d" ;exit
+fi
+#### chooser ############
+if [ "$1" = "-c" ] ;then
+shift
+export CHOOSER_DIALOG="<window title=\"$1\" resizable=\"true\">
+<vbox>
+ <chooser>
+  <variable>CHOOSER</variable>
+  <width>600</width>
+  <height>400</height>
+ </chooser>
+ <hbox>
+  <button ok></button>
+  <button cancel></button>
+ </hbox>
+</vbox>
+</window>"
+  INF="`gtkdialog --program=CHOOSER_DIALOG --center`"
+  eval "${INF}"
+  echo "${CHOOSER}"
+exit
+fi
+##########
+
+[ "$3" = "" ] && c=" " || c="$3"
+[ "`pidof X Xorg.bin`" = "" ] && echo "$2 $c" && exit
+
+if [ "$1" = "--test" ] ;then
+ntf -i "splash" "инфо"
+ntf -i5 "splash" "инфо 5сек."
+ntf -e "splash" "ошибка"
+ntf -q "тест" "???"
+ntf -w "тест" "!!!"
+ntf -a "тест" "alert"
+ntf -l "т|е|к|ст" "заголовок" "текст"
+ntf -3 "gtk-yes|yes да|1=gtk-no|no|2" "Заголовок" "текст"
+ntf -c "Выбор файла (каталога)"
+ntf -f "*" "заголовок" "текст"
+exit
+fi
+
+HLP() {
+echo "Вывод сообщения
+Use: $0 [-[ieaqw][n]] \"заголовок\" [\"текст\"]
+    $0 -l \"т|е|к|ст\" [\"заголовок\"] [\"текст\"]
+    $0 -c [\"заголовок\"] 
+    $0 -f [\"*.txt|*.html\"] [\"заголовок\"] [\"текст\"]
+    $0 -3 \"gtk-yes|yes да|1=gtk-no|no|2\" [\"Заголовок\"] [\"текст\"]
+    $0 -3 \"\\
+gtk-yes
+yes да
+1
+\\
+gtk-no
+no
+2\" [\"Заголовок\"] [\"текст\"]
+    $0 --test - демонстрация возможностей
+    
+    i - информация  (всплывающее)
+    e - ошибка (всплывающее)
+    a - авария
+    q - вопрос (да=0)
+    w - сообщение с кнопкой ОК
+    l - выбор из списка
+    3 - выбор из списка с иконкой и скрытым полем
+    n - число секунд показа сообщения
+    c - выбор файла (каталога)
+    f - выбор файла (опционально с фильтром вида: \"*.txt|*.html\")
+
+i,e выдают всплывающее сообщение. Скрипт проверяет наличие в системе : mate-notification-daemon notify-osd notifyd yad xpupsay conky conky-(без поддержки ico) yaf-splash gxmessage. Выводит сообщение первым найденным способом .
+
+a,w выводят интерактивное сообщение (требуется нажать кнопку). Скрипт проверяет наличие в системе : yad Xdialog. Выводит сообщение первым найденным способом.
+
+q - вопрос. Обработка : [ \"\`ntf -q \"Выключить\" \"ПК?\"\`\" ] && shutdown -h now. 
+Или через [ \"\$?\" = \"0\" ] && exit (1-нет 0-да)
+
+Cпособ вывода и прочие параметры можно указать в ~/.config/ntf.conf.
+" && exit
+}
+[ "$1" ] || HLP
+[ "$1" = "--help" ] && HLP
+[ "$2" = "" ] && ntf -i "$1" && exit
+
+YS() {
+[ "$splash" = "yad" ] || return
+[ "$3" = "$info" ] && col=green || col=red
+yad --width=1980  --image="$3" "$yad_deco"  --no-buttons --"$placement" --timeout="$time" \
+    --window-icon="$3" --title="`basename $3 48.png`" \
+    --timeout-indicator=bottom --wrap --text "<span color=\"$col\"><b>$1</b></span>
+$2" ; exit 0
+}
+
+YAD() {
+[ "$dialog" = "yad" ] || return
+    [ "`echo $3|egrep '\-q'`" ] && i="--image=$que --button=gtk-yes:0 --button=gtk-no" && col=black
+    [ "`echo $3|egrep '\-a'`" ] && i="--image=$err --button=gtk-ok:0" && col=red
+    [ "`echo $3|egrep '\-w'`" ] && i="--image=$info --button=gtk-ok:0 --back=red" && col=green
+yad --image-on-top $i  "$yad_deco" --center  \
+    --window-icon="$info" --title="$1" \
+    --text "<span color=\"$col\" font=\"Mono 11\"><b>$1</b></span>
+<i>$2</i>"  && echo $? ; exit
+}
+
+XD() {
+[ "$dialog" = "xdialog" ] || return
+[ "`echo $3|grep '\-a'`" ] && Xdialog --icon $err --title ":-(" \
+    --msgbox "$1\n$2" 6 0 && exit
+
+[ "`echo $3|grep '\-w'`" ] && Xdialog --wrap --icon $warn --title "!" \
+    --msgbox "$1\n$2" 6 0 && exit
+
+[ "`echo $3|grep '\-q'`" ] && Xdialog --icon $que --title "?" \
+    --ok-label "Да" --cancel-label "Нет"  --yesno "$1\n$2" 6 0 && echo $? ; exit
+}
+######### alert & ? ##########
+if [ "`echo $1|egrep '\-q|\-w|\-a'`" ];then
+        [ "`which yad`" ] && YAD "$2" "$c" "$1"
+	[ "`which Xdialog`" ] && XD "$2" "$c" "$1" 
+fi
+
+NS() {
+[  -f /etc/rc.d/PUPSTATE ] || notifysend="sudo -u `sfsusr` $notifysend" 
+m1="`echo "$1" | sed 's/<[^>]*>//g'`"
+m2="`echo "$2" | sed 's/<[^>]*>//g'`"
+$notifysend "$m1" "$m2" "$3" "$4"  && exit
+}
+
+NSe() {
+[  -f /etc/rc.d/PUPSTATE ] && return
+if [ "`id -u`" = "0" ] ;then
+	return
+fi
+m1="`echo "$1" | sed 's/<[^>]*>//g'`"
+m2="`echo "$2" | sed 's/<[^>]*>//g'`"
+$notifysend "$m1" "$m2" "$3" "$4"  && exit
+}
+
+CK() {
+yy=50
+y="`xwininfo -root |awk -F":" '/Height:/ {print ($2-'$yy')}'`"
+echo "\
+use_xft yes
+xftalpha 1
+total_run_times 0
+double_buffer yes
+draw_shades no
+draw_outline no
+draw_graph_borders yes
+default_color black
+#default_color d8d8d8
+#default_shade_color 000000
+#default_outline_color d9d7d6
+no_buffers yes
+uppercase no
+override_utf8_locale yes
+
+own_window yes
+own_window_colour $col
+own_window_hints undecorated,sticky,skip_taskbar
+
+gap_x 60
+gap_y 668
+
+xftfont monospace:size=10
+alignment bottom_right
+TEXT
+" > ~/.con-not
+}
+
+CK1() {
+CK && conky -y $y -i 7 -c ~/.con-not --text="\
+\${image $3 -p 0,0 -s 48x48}\
+\${font monospace:size=10:bold}\
+     $1 
+\${font monospace:size=10}\
+        $2" && exit
+}
+
+CK2() {
+[ "`which conky-`" ] && conky- -y $y -i 7 -c ~/.con-not --text="\
+\${font monospace:size=10:bold}\
+$1 
+\${font monospace:size=10}\
+$2" && exit
+}
+
+XPS() {
+[ "$splash" = "xpupsay" ] || return
+[ "$placement" = "geometry=-0" ] && placement="--at=10000000,$(( 15*`pidof xpupsay|wc -m` ))" || placement=
+[ "$3" = "$info" ] && col=green || col=red
+xpupsay -f "Mono 12" --time=$time --image=$3 "$placement" "<span color='$col'>$1</span>
+<span font=\"Mono 10\"><i>$2</i></span>" && exit
+}
+
+GS() {
+[ "$splash" = "gtkdialog" ] || return
+[ "$placement" = "geometry=-0" ] && placement=top
+gtkdialog-splash -timeout "$time" -placement "$placement" -text "$1
+<i>$2</i>" -icon "$3" -bg $4  && exit
+}
+
+#### list ############
+if [ "$1" = "-l" ] ;then
+shift
+sel="$(echo "$1"|sed 's/|/\n/g' |yad   --title "$2" --list --text \
+    "<span size='large'><b>$2</b></span>
+<i>$3</i>"  \
+	--regex-search $yad_deco \
+	--search-column=1 \
+	--center \
+	--separator= \
+	--height=340 --width=440 \
+	--no-headers \
+	--image-on-top --image="x48" \
+	--window-icon=gtk-index \
+	--column="*" \
+	)"
+echo "$sel"
+exit
+fi
+
+#### 3list ############
+if [ "$1" = "-3" ] ;then
+shift
+sel="$(echo "$1"|sed 's/|/\n/g' |sed 's/=/\n/g' |yad   --title "$2" --list --text \
+    "<span size='large'><b>$2</b></span>
+<i>$3</i>"  \
+	--regex-search $yad_deco \
+	--search-column=2 \
+	--separator= \
+	--height=340 --width=440 \
+	--no-headers \
+	--image-on-top --image="x48" \
+	--window-icon=gtk-index \
+	--hide-column=3 \
+	--print-column=3 \
+	--column=:IMG \
+	--column="*" \
+	--column="+" \
+	--mouse \
+	)"
+echo "$sel"
+exit
+fi
+
+########### info ############
+if [ "`echo $1|egrep '\-i'`" ] || [ "$4" = "info" ] ;then
+    [ "$4" = "info" ] || shift
+    [ "$4" = "info" ] && c="$2"
+    [ -f /usr/lib/notify-osd/notify-osd ] && NS "$1" "$c" -i "$info" 
+    [ -f /usr/lib/xfce4-notifyd/xfce4-notifyd ] && NS "$1" "$c" -i "$info" 
+    [ -f /usr/lib/xfce4/notifyd/xfce4-notifyd ] && NS "$1" "$c" -i "$info" 
+    [ -f /usr/lib/mate-notification-daemon/mate-notification-daemon ] && NS "$1" "$c" -i "$info" 
+    [ "`which enlightenment`" ] && NSe "$1" "$c" -i "$info" 
+    [ "`which yad`" ] && YS "$1" "$c" "$info" 
+    [ "`which xpupsay`" != "" ] && XPS "$1" "$c" "$info" 
+    [ "`which gtkdialog-splash`" ] && GS "$1" "$c" "`basename $info .png`" green
+
+    col="green"
+    [ "`which conky`" ] && CK1 "$1" "$c" "$info"
+    [ "`which conky`" ] && CK2 "$1" "$c" 
+    
+fi
+
+########### err ############
+if [ "`echo ".$1"|grep '\-e'`" ] || [ "$4" = "error" ] ;then
+    [ "$4" = "error" ] || shift
+    [ "$4" = "error" ] && c="$2"
+    [ -f /usr/lib/notify-osd/notify-osd ] && NS "$1" "$c" -i "$err" 
+    [ -f /usr/lib/xfce4-notifyd/xfce4-notifyd ] && NS "$1" "$c" -i "$err" 
+    [ -f /usr/lib/xfce4/notifyd/xfce4-notifyd ] && NS "$1" "$c" -i "$err" 
+    [ -f /usr/lib/mate-notification-daemon/mate-notification-daemon ] && NS "$1" "$c" -i "$err" 
+    [ "`which enlightenment`" ] && NSe "$1" "$c" -e "$err" 
+    [ "`which yad`" ] && YS "$1" "$c" "$err" 
+    [ "`which xpupsay`" != "" ] && XPS "$1" "$c" "$err" 
+    [ "`which gtkdialog-splash`" ] && GS "$1" "$c" "`basename $err .png`" pink
+
+    col="pink"
+    [ "`which conky`" ] && CK1 "$1" "$c" "$err"
+    [ "`which conky`" ] && CK2 "$1" "$c" 
+fi
+
+gxmessage -center -timeout 3  -borderless -wrap  "$1 $c" &

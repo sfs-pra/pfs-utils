@@ -1,0 +1,36 @@
+#!/bin/sh
+a=sfslinux@gmail.com 
+v="150113"
+	    usr="`sfsusr`"
+HLP () {
+echo "\
+Использование: $0 [ПАРАМЕТР]... ШАБЛОН [ФАЙЛ]
+Запуск подключенного модуля.sfs имени исполняемого файла (или его части) 
+    -s 		запуск от имени root\
+"
+exit
+}
+
+[ "$@" = "" ] && HLP 
+
+for i in $@ ;do
+        shift
+        [ "$i" = "--help" ] && HLP 
+	[ "$i" = "-s" ] && usr=root	    
+done
+
+	    s="`basename $i`"
+	    s1=$s
+
+	    [ -n "`which sudo`" ] && sudou="sudo -u $usr"
+	    [ -f /etc/rc.d/PUPSTATE ] && sudou="" 
+DT () {
+	    dt=`ls -1 /mnt/.$1*/usr/share/applications/*.desktop| head -1|egrep -vi '/Glade2bas|/flash|/qtconf|/ffconvert'`
+}
+DT $s1
+[ "$dt" = "" ] && DT $s
+
+if [ "$dt" ] ;then
+m="$($sudou `awk -F"=" '/^Exec=/ {print $2}' $dt` 2>&1 |grep "shared libraries:" &)" 
+[ "$m" ] && ntf -a "Программа не запускается" "$m"
+fi
